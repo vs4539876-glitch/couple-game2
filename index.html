@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Couple Chat & Gift Game</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #2f3136; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        body { font-family: Arial, sans-serif; background: #2f3136; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .card { background: #36393f; padding: 20px; border-radius: 10px; width: 320px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        input, select, button { width: 90%; padding: 10px; margin: 8px 0; border-radius: 5px; border: none; font-size: 14px; }
+        input, select, button { width: 90%; padding: 10px; margin: 8px 0; border-radius: 5px; border: none; font-size: 14px; box-sizing: border-box; }
         button { background: #5865f2; color: white; font-weight: bold; cursor: pointer; }
         button:hover { background: #4752c4; }
         .hidden { display: none; }
@@ -19,138 +19,137 @@
 </head>
 <body>
 
-<div class="card" id="step1">
-    <h2>Enter Game</h2>
-    <input type="text" id="username" placeholder="Enter Your Name">
-    <select id="points">
-        <option value="100">100 Points</option>
-        <option value="200">200 Points</option>
-        <option value="300">300 Points</option>
-    </select>
-    <button onclick="showStep2()">Next</button>
-</div>
-
-<div class="card hidden" id="step2">
-    <button onclick="generateCode()">Generate Code</button>
-    <hr style="border: 0.5px solid #4f545c; margin: 15px 0;">
-    <input type="text" id="friendCode" placeholder="Enter Friend Code">
-    <button onclick="joinCode()">Submit Code</button>
-</div>
-
-<div class="card hidden" id="stepHostWait">
-    <p>Your Code (Valid for 5 mins):</p>
-    <h1 id="displayCode" style="color: #5865f2; letter-spacing: 2px;">------</h1>
-    <p style="font-size: 12px; color: #aaa;">Waiting for friend to enter code...</p>
-    <div id="joinRequestBox" class="hidden" style="margin-top: 15px;">
-        <p id="requestMsg" style="color: #57f287; font-weight: bold;"></p>
-        <button onclick="acceptFriend()">JOIN</button>
+    <div class="card" id="step1">
+        <h2>Enter Game</h2>
+        <input type="text" id="username" placeholder="Enter Your Name">
+        <select id="points">
+            <option value="100">100 Points</option>
+            <option value="200">200 Points</option>
+            <option value="300">300 Points</option>
+        </select>
+        <button onclick="showStep2()">Next</button>
     </div>
-</div>
 
-<div class="card hidden" id="chatScreen">
-    <h3>Target: <span id="targetScore"></span> | Score: <span id="currentScore" style="color:#57f287;">0</span></h3>
-    <div id="chatBox"></div>
-    <input type="text" id="msgInput" placeholder="Type a message...">
-    <button onclick="sendMsg()">Send (+3 Points)</button>
-    <button id="finishBtn" class="hidden" style="background: #ed4245;" onclick="showGift()">FINISH & GET GIFT 🎉</button>
-</div>
+    <div class="card hidden" id="step2">
+        <button onclick="generateCode()">Generate Code</button>
+        <hr style="border: 0.5px solid #4f545c; margin: 15px 0;">
+        <input type="text" id="friendCode" placeholder="Enter Friend Code">
+        <button onclick="joinCode()">Submit Code</button>
+    </div>
 
-<div class="card hidden" id="giftScreen">
-    <h2>Congratulations! 🎁</h2>
-    <p>You unlocked a gift for your partner:</p>
-    <h1 id="giftEmoji" style="font-size: 80px; margin: 10px 0;"></h1>
-    <h3 id="giftName" style="color: #fee75c;"></h3>
-</div>
+    <div class="card hidden" id="stepHostWait">
+        <p>Your Code (Valid for 5 mins):</p>
+        <h1 id="displayCode" style="color: #5865f2; letter-spacing: 2px;">------</h1>
+        <p style="font-size: 12px; color: #aaa;">Waiting for friend to enter code...</p>
+        <div id="joinRequestBox" class="hidden" style="margin-top: 15px;">
+            <p id="requestMsg" style="color: #57f287; font-weight: bold;"></p>
+            <button onclick="acceptFriend()">JOIN</button>
+        </div>
+    </div>
 
-<script>
-    // const socket = io();
-    let myName = "", currentCode = "", target = 100;
+    <div class="card hidden" id="chatScreen">
+        <h3>Target: <span id="targetScore"></span> | Score: <span id="currentScore" style="color: #57f287;">0</span></h3>
+        <div id="chatBox"></div>
+        <input type="text" id="msgInput" placeholder="Type a message...">
+        <button onclick="sendMsg()">Send (+3 Points)</button>
+        <button id="finishBtn" class="hidden" style="background: #ed4245;" onclick="showGift()">FINISH & GET GIFT 🎉</button>
+    </div>
 
-    function showStep2() {
-        myName = document.getElementById('username').value.trim();
-        if(!myName) return alert('Please enter your name');
-        document.getElementById('step1').classList.add('hidden');
-        document.getElementById('step2').classList.remove('hidden');
-    }
+    <div class="card hidden" id="giftScreen">
+        <h2>Congratulations! 🎉</h2>
+        <p>You unlocked a gift for your partner:</p>
+        <h1 id="giftEmoji" style="font-size: 80px; margin: 10px 0;"></h1>
+        <h3 id="giftName" style="color: #fee75c;"></h3>
+    </div>
 
-    function generateCode() {
-        target = document.getElementById('points').value;
-        socket.emit('createRoom', { name: myName, points: target });
-    }
+    <script>
+        const socket = io("https://couple-game2.onrender.com");
+        let myName = "", currentCode = "", target = 100;
 
-    socket.on('codeGenerated', ({ roomCode }) => {
-        currentCode = roomCode;
-        document.getElementById('step2').classList.add('hidden');
-        document.getElementById('stepHostWait').classList.remove('hidden');
-        document.getElementById('displayCode').innerText = roomCode;
-    });
-
-    socket.on('codeExpired', () => {
-        alert('Your room code has expired (5 mins passed)! Please generate again.');
-        location.reload();
-    });
-
-    function joinCode() {
-        currentCode = document.getElementById('friendCode').value.trim();
-        if(!currentCode) return alert('Enter a valid code');
-        socket.emit('requestJoin', { roomCode: currentCode, guestName: myName });
-    }
-
-    socket.on('joinRequestReceived', ({ guestName }) => {
-        document.getElementById('joinRequestBox').classList.remove('hidden');
-        document.getElementById('requestMsg').innerText = `${guestName} wants to join!`;
-    });
-
-    socket.on('errorMsg', (msg) => {
-        alert(msg);
-    });
-
-    function acceptFriend() {
-        socket.emit('acceptJoin', { roomCode: currentCode });
-    }
-
-    socket.on('startChat', ({ targetPoints }) => {
-        document.getElementById('stepHostWait').classList.add('hidden');
-        document.getElementById('step2').classList.add('hidden');
-        document.getElementById('chatScreen').classList.remove('hidden');
-        document.getElementById('targetScore').innerText = targetPoints;
-    });
-
-    function sendMsg() {
-        const input = document.getElementById('msgInput');
-        const msg = input.value.trim();
-        if(!msg) return;
-        socket.emit('sendMessage', { roomCode: currentCode, message: msg, senderName: myName });
-        input.value = '';
-    }
-
-    socket.on('newMessage', ({ senderName, message, currentPoints, isCompleted }) => {
-        const chatBox = document.getElementById('chatBox');
-        chatBox.innerHTML += `<div class="msg"><b>${senderName}:</b> ${message}</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
-        document.getElementById('currentScore').innerText = currentPoints;
-
-        if (isCompleted) {
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            document.getElementById('finishBtn').classList.remove('hidden');
+        function showStep2() {
+            myName = document.getElementById('username').value.trim();
+            if (!myName) return alert('Please enter your name');
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
         }
-    });
 
-    function showGift() {
-        const gifts = [
-            { name: 'Delicious Chocolate', emoji: '🍫' },
-            { name: 'Cute Teddy Bear', emoji: '🧸' },
-            { name: 'Red Rose', emoji: '🌹' },
-            { name: 'Diamond Ring', emoji: '💍' },
-            { name: 'Friendship Band', emoji: '⌚' }
-        ];
-        const randomGift = gifts[Math.floor(Math.random() * gifts.length)];
-        
-        document.getElementById('chatScreen').classList.add('hidden');
-        document.getElementById('giftScreen').classList.remove('hidden');
-        document.getElementById('giftEmoji').innerText = randomGift.emoji;
-        document.getElementById('giftName').innerText = randomGift.name;
-    }
-</script>
+        function generateCode() {
+            target = document.getElementById('points').value;
+            socket.emit('createRoom', { name: myName, points: target });
+        }
+
+        socket.on('codeGenerated', ({ roomCode }) => {
+            currentCode = roomCode;
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('stepHostWait').classList.remove('hidden');
+            document.getElementById('displayCode').innerText = roomCode;
+        });
+
+        socket.on('codeExpired', () => {
+            alert('Your room code has expired (5 mins passed)! Please generate again.');
+            location.reload();
+        });
+
+        function joinCode() {
+            currentCode = document.getElementById('friendCode').value.trim();
+            if (!currentCode) return alert('Enter a valid code');
+            socket.emit('requestJoin', { roomCode: currentCode, guestName: myName });
+        }
+
+        socket.on('joinRequestReceived', ({ guestName }) => {
+            document.getElementById('joinRequestBox').classList.remove('hidden');
+            document.getElementById('requestMsg').innerText = `${guestName} wants to join!`;
+        });
+
+        socket.on('errorMsg', (msg) => {
+            alert(msg);
+        });
+
+        function acceptFriend() {
+            socket.emit('acceptJoin', { roomCode: currentCode });
+        }
+
+        socket.on('startChat', ({ targetPoints }) => {
+            document.getElementById('stepHostWait').classList.add('hidden');
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('chatScreen').classList.remove('hidden');
+            document.getElementById('targetScore').innerText = targetPoints;
+        });
+
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            socket.emit('sendMessage', { roomCode: currentCode, message: msg, senderName: myName });
+            input.value = '';
+        }
+
+        socket.on('newMessage', ({ senderName, message, currentPoints, isCompleted }) => {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML += `<div class="msg"><b>${senderName}:</b> ${message}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            document.getElementById('currentScore').innerText = currentPoints;
+
+            if (isCompleted) {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                document.getElementById('finishBtn').classList.remove('hidden');
+            }
+        });
+
+        function showGift() {
+            const gifts = [
+                { name: 'Delicious Chocolate', emoji: '🍫' },
+                { name: 'Cute Teddy Bear', emoji: '🧸' },
+                { name: 'Red Rose', emoji: '🌹' },
+                { name: 'Diamond Ring', emoji: '💍' },
+                { name: 'Friendship Band', emoji: '⌚' }
+            ];
+            const randomGift = gifts[Math.floor(Math.random() * gifts.length)];
+            document.getElementById('chatScreen').classList.add('hidden');
+            document.getElementById('giftScreen').classList.remove('hidden');
+            document.getElementById('giftEmoji').innerText = randomGift.emoji;
+            document.getElementById('giftName').innerText = randomGift.name;
+        }
+    </script>
 </body>
 </html>
